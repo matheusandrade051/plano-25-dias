@@ -33,6 +33,28 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
   return { ok: true, message: "Configurações salvas!" };
 }
 
+export async function setPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  if (password.length < 8) return { error: "A senha precisa ter pelo menos 8 caracteres." };
+  if (password.length > 72) return { error: "A senha pode ter no máximo 72 caracteres." };
+  if (password !== confirm) return { error: "As senhas não são iguais." };
+
+  try {
+    const { supabase } = await requireUser();
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      console.error("[senha] updateUser falhou:", error.status, error.code, error.message);
+      if (error.code === "same_password") return { error: "Escolha uma senha diferente da atual." };
+      if (error.code === "weak_password") return { error: "Senha fraca demais. Misture letras e números." };
+      return { error: `Não foi possível salvar a senha: ${error.message}` };
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro inesperado." };
+  }
+  return { ok: true, message: "Senha definida! Agora você pode entrar com e-mail e senha." };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
